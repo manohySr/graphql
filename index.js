@@ -17,6 +17,8 @@ let tasks = [
   },
 ];
 
+const validPriorities = ["low", "medium", "high"];
+
 const typeDefs = gql`
   type Task {
     id: ID!
@@ -27,19 +29,27 @@ const typeDefs = gql`
   }
 
   type Query {
-    getTasks: [Task]
+    getTasks(priority: String, completed: Boolean): [Task]
     getTaskById(id: ID!): Task
   }
 
   type Mutation {
     addTask(title: String!, priority: String!, description: String): Task
     toggleTaskCompletion(id: ID!): Task
+    updateTask(
+      id: ID!
+      title: String
+      priority: String
+      completed: Boolean
+      description: String
+    ): Task
+    deleteTask(id: ID!): String
   }
 `;
 
 const resolvers = {
   Query: {
-    getTasks: () => tasks,
+    getTasks: (priority, completed) => tasks,
 
     getTaskById: (_, { id }) => {
       const task = tasks.find((task) => task.id === id);
@@ -50,8 +60,6 @@ const resolvers = {
 
   Mutation: {
     addTask: (_, { title, priority, description }) => {
-      const validPriorities = ["low", "medium", "high"];
-
       if (!validPriorities.includes(priority)) {
         throw new Error("Invalid priority value");
       }
@@ -75,6 +83,36 @@ const resolvers = {
       if (!task) throw new Error("Task not found");
       task.completed = !task.completed;
       return task;
+    },
+
+    updateTask: (_, { id, title, priority, completed, description }) => {
+      const task = tasks.find((task) => task.id === id);
+      if (!task) throw new Error("Task not found");
+
+      // Validate the priority if it's being updated
+      if (priority) {
+        if (!validPriorities.includes(priority)) {
+          throw new Error(
+            `Invalid priority value. Allowed values are: ${validPriorities.join(", ")}`,
+          );
+        }
+      }
+
+      // Update fields only if they are provided
+      if (title !== undefined) task.title = title;
+      if (priority !== undefined) task.priority = priority;
+      if (completed !== undefined) task.completed = completed;
+      if (description !== undefined) task.description = description;
+
+      return task;
+    },
+
+    deleteTask: (_, { id }) => {
+      const taskIndex = tasks.findIndex((task) => task.id === id);
+      if (taskIndex === -1) throw new Error("Task not found");
+
+      tasks.splice(taskIndex, 1);
+      return `Task with ID ${id} deleted successfully`;
     },
   },
 };
